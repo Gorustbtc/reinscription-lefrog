@@ -168,7 +168,59 @@ async function childInscribe() {
     }
   }
 
-  async function dummyPsbt(amount: number, targetAddress: string) {
+  async function dummyPsbtToInscribe(amonut: number, address: string) {
+
+    const utxos = [{
+      txid: "d516c9d358eb0af6dcbe2ede3a48138e14db30df00d51e2cef216a34b70e1c69",
+      vout: 1,
+      value: 56662
+    }]
+
+    const psbt = new Psbt({ network })
+
+    psbt.addInput({
+      hash: utxos[0].txid,
+      index: utxos[0].vout,
+      tapInternalKey: toXOnly(keyPair.publicKey),
+      witnessUtxo: { value: utxos[0].value, script: wallet.output! },
+      tapLeafScript: [
+        {
+          leafVersion: redeem.redeemVersion,
+          script: redeem.output,
+          controlBlock: ordinal_p2tr.witness![ordinal_p2tr.witness!.length - 1],
+        },
+      ],
+    });
+
+    psbt.addOutput({
+      address: receiveAddress, //Destination Address
+      value: 546,
+    });
+
+    wallet.signPsbt(psbt, wallet.ecPair);
+    const txVirtualSize = psbt.extractTransaction(true).virtualSize();
+    return txVirtualSize
+
+  }
+
+  let virtualTempSize = 1000;
+
+  const feerate = await getFeeRate() + 2000;
+  console.log("feerate===>", feerate);
+
+  const txVirtualSizeOfInscription = await dummyPsbtToInscribe(virtualTempSize * feerate, address)
+  console.log("txVirtualSizeOfInscription==>", txVirtualSizeOfInscription);
+
+  const inscriptionFee = txVirtualSizeOfInscription * feerate
+  console.log('inscriptionFee==>', inscriptionFee);
+
+  /**
+   * 
+   * @param amount 
+   * @param targetAddress 
+   * @returns 
+   */
+  async function dummyPsbtToSendBtc(amount: number, targetAddress: string) {
     const tempUtxoList = [];
     let btcTotalamount = 0;
     const psbt = new Psbt({ network });
@@ -210,18 +262,23 @@ async function childInscribe() {
       });
     }
     wallet.signPsbt(psbt, wallet.ecPair);
-    const txVirtualSize = psbt.extractTransaction().virtualSize();
+    const txVirtualSize = psbt.extractTransaction(true).virtualSize();
     return txVirtualSize
   }
 
-  let virtualTempSize = 1000;
+  let virtualTempSize1 = 1000;
 
-  const feerate = await getFeeRate() + 100;
-  const txVirtualSize = await dummyPsbt(virtualTempSize * feerate, address)
+  const feerate1 = await getFeeRate() + 2000;
+  const txVirtualSizeOfBtc = await dummyPsbtToSendBtc(virtualTempSize1 * feerate1, address)
+  const sendFee = txVirtualSizeOfBtc * feerate1
+  console.log('txVirtualSizeOfBtc===>', txVirtualSizeOfBtc);
+  console.log("sendBtcFee===>", sendFee);
 
 
-  const amountToSendBTC = await sendBTC(txVirtualSize * feerate + 546, address)
+
+  const amountToSendBTC = await sendBTC(inscriptionFee + sendFee + 546, address)
   console.log("amountToSendBTC===>", amountToSendBTC);
+
   await waitForConfirmation(amountToSendBTC)
 
 
@@ -243,41 +300,16 @@ async function childInscribe() {
     ],
   });
 
-  const change = utxos[0].value - 546 - (txVirtualSize * feerate);
-  console.log("change====+>", change);
-
   psbt.addOutput({
     address: receiveAddress, //Destination Address
     value: 546,
   });
 
-  psbt.addOutput({
-    address: receiveAddress, // Change address
-    value: change,
-  });
-
-
   await signAndSend(keyPair, psbt);
 
 }
 
-export async function waitForConfirmation(txId: string) {
-  let confirmed = false;
-  while (!confirmed) {
-    await new Promise(resolve => setTimeout(resolve, 10000));
-
-    const status = await getTxStatus(txId);
-    console.log(`Checking status for transaction ${txId}:`, status);
-
-    if (status.confirmed) {
-      console.log(`Transaction ${txId} confirmed at block height ${status.blockHeight}`);
-      confirmed = true; 
-    }
-  }
-}
-
 childInscribe()
-
 
 export async function getFeeRate() {
   const url = `${MEMPOOLAPI_URL}/v1/fees/recommended`;
@@ -372,6 +404,20 @@ export async function sendBTC(amount: number, targetAddress: string) {
   }
 }
 
+export async function waitForConfirmation(txId: string) {
+  let confirmed = false;
+  while (!confirmed) {
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    const status = await getTxStatus(txId);
+    console.log(`Checking status for transaction ${txId}:`, status);
+
+    if (status.confirmed) {
+      console.log(`Transaction ${txId} confirmed at block height ${status.blockHeight}`);
+      confirmed = true;
+    }
+  }
+}
 
 export async function signAndSend(
   keypair: BTCSigner,
@@ -399,7 +445,7 @@ export async function waitUntilUTXO(address: string) {
         const data: IUTXO[] = response.data
           ? JSON.parse(response.data)
           : undefined;
-        console.log("utxo==>",data);
+        console.log("utxo==>", data);
         if (data.length > 0) {
           resolve(data);
           clearInterval(intervalId);
