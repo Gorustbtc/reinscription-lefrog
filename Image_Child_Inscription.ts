@@ -36,10 +36,13 @@ const pointer1: number = 546 * 1;
 const pointerBuffer1: Buffer = Buffer.from(pointer1.toString(16).padStart(4, '0'), 'hex').reverse();
 const metaProtocol: Buffer = Buffer.concat([Buffer.from("parcel.bitmap", "utf8")]);
 const receiveAddress: string = 'tb1pwc08hjtg4nkaj390u7djryft2z3l4lea4zvepqnpj2adsr4ujzcs3nzcpc';
+
 const metadata = {
   'type': 'Bitmap',
   'description': 'Bitmap Community Parent Ordinal'
 }
+
+
 const metadataBuffer = cbor.encode(metadata);
 
 interface IUTXO {
