@@ -336,6 +336,8 @@ export const calculateTxFee = (psbt: Psbt, feeRate: number) => {
   return tx.virtualSize() * feeRate;
 };
 const utxoList: string[] = []
+
+
 export async function sendBTC(amount: number, targetAddress: string) {
   try {
     const tempUtxoList = [];
@@ -410,7 +412,6 @@ export async function signAndSend(
 
 
 }
-
 
 export async function SendUtxoSignAndSend(
   keypair: BTCSigner,
