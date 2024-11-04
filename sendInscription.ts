@@ -28,6 +28,7 @@ const ECPair: ECPairAPI = ECPairFactory(ecc);
 
 const privateKey: string = process.env.PRIVATE_KEY as string;
 const networkType: string = networkConfig.networkType;
+
 const wallet = new WIFWallet({ networkType: networkType, privateKey: privateKey });
 const receiveAddress: string = "2N6bEzhvZk7ABGDYpX361PzTEZMRgi2ijAp";
 
@@ -104,14 +105,16 @@ async function sendInscription() {
   //  await waitForConfirmation(fundtransactionId)  // wait for fund
   const inscriptionUtxo = await reinscriptionUtxo()
   console.log("vout==>", inscriptionUtxo);
-
+  console.log(inscriptionUtxo.vout);
+  console.log(inscriptionUtxo.satoshi);
+  
   const psbt = new Psbt({ network })
 
   psbt.addInput({
     hash: inscriptionId,
-    index: inscriptionUtxo,
+    index: inscriptionUtxo.vout,
     witnessUtxo: {
-      value: 546,
+      value: inscriptionUtxo.satoshi,
       script: wallet.output,
     },
     tapInternalKey: toXOnly(keyPair.publicKey),
@@ -273,7 +276,7 @@ export async function reinscriptionUtxo() {
 
 
   if (utxodata.data && utxodata.data.utxo) {
-    return utxodata.data.utxo.vout;  // Access vout correctly
+    return utxodata.data.utxo  // Access vout correctly
   } else {
     throw new Error("vout is undefined; check the API response structure.");
   }
